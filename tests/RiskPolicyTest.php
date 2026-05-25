@@ -18,7 +18,7 @@ class RiskPolicyTest extends TestCase
 
     public function test_it_allows_packages_and_advisories(): void
     {
-        $policy = new RiskPolicy('high', true, true, 7, 2, ['laravel/framework'], ['GHSA-1234']);
+        $policy = new RiskPolicy('high', true, true, 7, 2, true, ['laravel/framework'], ['GHSA-1234']);
 
         $this->assertTrue($policy->allows('laravel/framework'));
         $this->assertTrue($policy->allows('vite', 'GHSA-1234'));

@@ -25,6 +25,7 @@ class RiskPolicy
         public readonly bool $freshnessEnabled,
         public readonly int $freshnessWarnDays,
         public readonly int $freshnessBlockDays,
+        public readonly bool $updatesEnabled = true,
         private readonly array $allowedPackages = [],
         private readonly array $allowedAdvisories = [],
     ) {
@@ -37,6 +38,7 @@ class RiskPolicy
     public static function fromArray(array $config, array $overrides = []): self
     {
         $allow = is_array($config['allow'] ?? null) ? $config['allow'] : [];
+        $updates = is_array($config['updates'] ?? null) ? $config['updates'] : [];
         $freshness = is_array($config['freshness'] ?? null) ? $config['freshness'] : [];
         $legacyFreshnessDays = (int) ($config['freshness_days'] ?? 7);
 
@@ -46,6 +48,7 @@ class RiskPolicy
             freshnessEnabled: (bool) ($freshness['enabled'] ?? true),
             freshnessWarnDays: (int) ($freshness['warn_days'] ?? $legacyFreshnessDays),
             freshnessBlockDays: (int) ($freshness['block_days'] ?? 0),
+            updatesEnabled: (bool) ($updates['enabled'] ?? true),
             allowedPackages: array_values((array) ($allow['packages'] ?? [])),
             allowedAdvisories: array_values((array) ($allow['advisories'] ?? [])),
         );

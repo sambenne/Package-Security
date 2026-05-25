@@ -7,8 +7,8 @@ use Sambenne\PackageSecurity\Auditors\ComposerAuditor;
 use Sambenne\PackageSecurity\Auditors\NpmAuditor;
 use Sambenne\PackageSecurity\Risk\RiskPolicy;
 use Sambenne\PackageSecurity\Support\NativeCommandResult;
-use Sambenne\PackageSecurity\Support\NativeCommandRunner;
-use Sambenne\PackageSecurity\Support\PackageMetadataClient;
+use Sambenne\PackageSecurity\Tests\Fakes\FakeCommandRunner;
+use Sambenne\PackageSecurity\Tests\Fakes\FakeMetadataClient;
 
 class FreshnessAuditTest extends TestCase
 {
@@ -33,7 +33,8 @@ class FreshnessAuditTest extends TestCase
         $report = $auditor->audit($path);
 
         $this->assertTrue($report->hasBlockedFindings());
-        $this->assertSame('fresh-release', $report->findings()[0]->type);
+        $this->assertSame('update-available', $report->findings()[0]->type);
+        $this->assertSame('fresh-release', $report->findings()[1]->type);
     }
 
     public function test_npm_auditor_warns_about_fresh_update_candidates(): void
@@ -58,8 +59,9 @@ class FreshnessAuditTest extends TestCase
 
         $this->assertFalse($report->hasBlockedFindings());
         $this->assertTrue($report->hasWarnings());
-        $this->assertSame('fresh-release', $report->findings()[0]->type);
-        $this->assertSame('medium', $report->findings()[0]->severity);
+        $this->assertSame('update-available', $report->findings()[0]->type);
+        $this->assertSame('fresh-release', $report->findings()[1]->type);
+        $this->assertSame('medium', $report->findings()[1]->severity);
     }
 
     /**
@@ -75,43 +77,5 @@ class FreshnessAuditTest extends TestCase
         }
 
         return $path;
-    }
-}
-
-class FakeCommandRunner extends NativeCommandRunner
-{
-    /**
-     * @param array<string, NativeCommandResult> $results
-     */
-    public function __construct(private readonly array $results)
-    {
-    }
-
-    public function run(array $command, string $workingDirectory): NativeCommandResult
-    {
-        return $this->results[implode(' ', $command)] ?? new NativeCommandResult(0, '{}');
-    }
-}
-
-class FakeMetadataClient extends PackageMetadataClient
-{
-    /**
-     * @param array<string, DateTimeImmutable> $composerDates
-     * @param array<string, DateTimeImmutable> $npmDates
-     */
-    public function __construct(
-        private readonly array $composerDates = [],
-        private readonly array $npmDates = [],
-    ) {
-    }
-
-    public function composerPublishedAt(string $package, string $version): ?DateTimeImmutable
-    {
-        return $this->composerDates[$package . ':' . $version] ?? null;
-    }
-
-    public function npmPublishedAt(string $package, string $version): ?DateTimeImmutable
-    {
-        return $this->npmDates[$package . ':' . $version] ?? null;
     }
 }

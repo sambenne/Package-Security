@@ -69,14 +69,14 @@ class NpmAuditor
             ));
         }
 
-        $this->auditFreshness($path, $report);
+        $this->auditOutdatedPackages($path, $report);
 
         return $report;
     }
 
-    private function auditFreshness(string $path, AuditReport $report): void
+    private function auditOutdatedPackages(string $path, AuditReport $report): void
     {
-        if (! $this->policy->freshnessEnabled) {
+        if (! $this->policy->updatesEnabled && ! $this->policy->freshnessEnabled) {
             return;
         }
 
@@ -100,9 +100,28 @@ class NpmAuditor
             }
 
             $currentVersion = (string) ($package['current'] ?? '');
+            $wantedVersion = (string) ($package['wanted'] ?? $package['latest'] ?? '');
             $candidateVersion = (string) ($package['latest'] ?? '');
 
             if ($currentVersion === '' || $candidateVersion === '' || $this->policy->allows((string) $name)) {
+                continue;
+            }
+
+            if ($this->policy->updatesEnabled) {
+                $outsideConstraint = $wantedVersion !== '' && $wantedVersion !== $candidateVersion;
+
+                $report->add(Finding::updateAvailable(
+                    ecosystem: 'npm',
+                    package: (string) $name,
+                    currentVersion: $currentVersion,
+                    wantedVersion: $wantedVersion !== '' ? $wantedVersion : $candidateVersion,
+                    latestVersion: $candidateVersion,
+                    severity: $outsideConstraint ? 'medium' : 'low',
+                    reason: $outsideConstraint ? 'Latest is outside the declared dependency range.' : '',
+                ));
+            }
+
+            if (! $this->policy->freshnessEnabled) {
                 continue;
             }
 

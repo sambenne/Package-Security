@@ -85,6 +85,35 @@ class Finding
         );
     }
 
+    public static function updateAvailable(
+        string $ecosystem,
+        string $package,
+        string $currentVersion,
+        string $wantedVersion,
+        string $latestVersion,
+        string $severity,
+        string $reason = '',
+    ): self {
+        $message = sprintf(
+            'Update available: current %s, wanted %s, latest %s.',
+            $currentVersion,
+            $wantedVersion,
+            $latestVersion,
+        );
+
+        if ($reason !== '') {
+            $message .= ' ' . $reason;
+        }
+
+        return new self(
+            ecosystem: $ecosystem,
+            package: $package,
+            type: 'update-available',
+            severity: $severity,
+            message: $message,
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */

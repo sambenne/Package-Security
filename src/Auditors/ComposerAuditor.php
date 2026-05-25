@@ -77,14 +77,14 @@ class ComposerAuditor
             $report->add(Finding::warning('composer', (string) $package, $message));
         }
 
-        $this->auditFreshness($path, $report);
+        $this->auditOutdatedPackages($path, $report);
 
         return $report;
     }
 
-    private function auditFreshness(string $path, AuditReport $report): void
+    private function auditOutdatedPackages(string $path, AuditReport $report): void
     {
-        if (! $this->policy->freshnessEnabled) {
+        if (! $this->policy->updatesEnabled && ! $this->policy->freshnessEnabled) {
             return;
         }
 
@@ -110,8 +110,25 @@ class ComposerAuditor
             $name = (string) ($package['name'] ?? '');
             $currentVersion = (string) ($package['version'] ?? '');
             $candidateVersion = (string) ($package['latest'] ?? '');
+            $latestStatus = (string) ($package['latest-status'] ?? '');
 
             if ($name === '' || $currentVersion === '' || $candidateVersion === '' || $this->policy->allows($name)) {
+                continue;
+            }
+
+            if ($this->policy->updatesEnabled) {
+                $report->add(Finding::updateAvailable(
+                    ecosystem: 'composer',
+                    package: $name,
+                    currentVersion: $currentVersion,
+                    wantedVersion: $candidateVersion,
+                    latestVersion: $candidateVersion,
+                    severity: $latestStatus === 'update-possible' ? 'medium' : 'low',
+                    reason: $this->composerUpdateReason($latestStatus),
+                ));
+            }
+
+            if (! $this->policy->freshnessEnabled) {
                 continue;
             }
 
@@ -137,5 +154,14 @@ class ComposerAuditor
                 severity: $decision['severity'],
             ));
         }
+    }
+
+    private function composerUpdateReason(string $latestStatus): string
+    {
+        return match ($latestStatus) {
+            'semver-safe-update' => 'Composer reports this as a semver-safe update.',
+            'update-possible' => 'Composer reports this as an update outside the current constraint.',
+            default => '',
+        };
     }
 }

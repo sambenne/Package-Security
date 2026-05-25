@@ -26,6 +26,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Update Reporting
+    |--------------------------------------------------------------------------
+    |
+    | Reports packages where a newer version exists. These findings do not block
+    | by default, but they help teams see update pressure alongside security risk.
+    |
+    */
+    'updates' => [
+        'enabled' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Release Freshness Quarantine
     |--------------------------------------------------------------------------
     |
