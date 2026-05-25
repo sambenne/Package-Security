@@ -9,6 +9,7 @@ use Sambenne\PackageSecurity\Auditors\NpmAuditor;
 use Sambenne\PackageSecurity\Reports\AuditReport;
 use Sambenne\PackageSecurity\Reports\ConsoleRenderer;
 use Sambenne\PackageSecurity\Reports\JsonRenderer;
+use Sambenne\PackageSecurity\Reports\SarifRenderer;
 use Sambenne\PackageSecurity\Risk\RiskPolicy;
 use Sambenne\PackageSecurity\Support\NativeCommandRunner;
 use Throwable;
@@ -20,7 +21,7 @@ class PackageAuditCommand extends Command
         {--composer : Audit Composer dependencies only}
         {--npm : Audit npm dependencies only}
         {--fail-on= : Minimum severity that blocks the audit}
-        {--format=table : Output format: table or json}
+        {--format=table : Output format: table, json, or sarif}
         {--ci : Return CI exit codes: 0 pass, 1 warnings, 2 blocked}';
 
     protected $description = 'Audit Composer and npm dependencies using a configurable risk gate.';
@@ -44,10 +45,14 @@ class PackageAuditCommand extends Command
 
         $format = strtolower((string) $this->option('format'));
 
-        if ($format === 'json') {
-            $this->line((new JsonRenderer())->render($report));
-        } else {
-            (new ConsoleRenderer($this->output))->render($report);
+        match ($format) {
+            'json' => $this->line((new JsonRenderer())->render($report)),
+            'sarif' => $this->line((new SarifRenderer())->render($report)),
+            default => (new ConsoleRenderer($this->output))->render($report),
+        };
+
+        if (! in_array($format, ['table', 'json', 'sarif'], true)) {
+            $this->warn(sprintf('Unknown format "%s"; rendered table output.', $format));
         }
 
         if ($report->hasBlockedFindings()) {

@@ -11,4 +11,14 @@ class PackageAuditCommandTest extends TestCase
             '--format' => 'json',
         ])->assertExitCode(0);
     }
+
+    public function test_command_can_render_sarif(): void
+    {
+        $this->artisan('package:audit', [
+            'path' => sys_get_temp_dir(),
+            '--format' => 'sarif',
+        ])
+            ->expectsOutputToContain('"version": "2.1.0"')
+            ->assertExitCode(0);
+    }
 }

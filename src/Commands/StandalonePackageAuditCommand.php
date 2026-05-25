@@ -7,6 +7,7 @@ use Sambenne\PackageSecurity\Auditors\NpmAuditor;
 use Sambenne\PackageSecurity\Reports\AuditReport;
 use Sambenne\PackageSecurity\Reports\ConsoleRenderer;
 use Sambenne\PackageSecurity\Reports\JsonRenderer;
+use Sambenne\PackageSecurity\Reports\SarifRenderer;
 use Sambenne\PackageSecurity\Risk\RiskPolicy;
 use Sambenne\PackageSecurity\Support\NativeCommandRunner;
 use Symfony\Component\Console\Command\Command;
@@ -29,7 +30,7 @@ class StandalonePackageAuditCommand extends Command
             ->addOption('composer', null, InputOption::VALUE_NONE, 'Audit Composer dependencies only')
             ->addOption('npm', null, InputOption::VALUE_NONE, 'Audit npm dependencies only')
             ->addOption('fail-on', null, InputOption::VALUE_REQUIRED, 'Minimum severity that blocks the audit')
-            ->addOption('format', null, InputOption::VALUE_REQUIRED, 'Output format: table or json', 'table')
+            ->addOption('format', null, InputOption::VALUE_REQUIRED, 'Output format: table, json, or sarif', 'table')
             ->addOption('ci', null, InputOption::VALUE_NONE, 'Return CI exit codes: 0 pass, 1 warnings, 2 blocked');
     }
 
@@ -50,10 +51,16 @@ class StandalonePackageAuditCommand extends Command
             $report->merge($auditor->audit($path));
         }
 
-        if (strtolower((string) $input->getOption('format')) === 'json') {
-            $output->writeln((new JsonRenderer())->render($report));
-        } else {
-            (new ConsoleRenderer($output))->render($report);
+        $format = strtolower((string) $input->getOption('format'));
+
+        match ($format) {
+            'json' => $output->writeln((new JsonRenderer())->render($report)),
+            'sarif' => $output->writeln((new SarifRenderer())->render($report)),
+            default => (new ConsoleRenderer($output))->render($report),
+        };
+
+        if (! in_array($format, ['table', 'json', 'sarif'], true)) {
+            $output->writeln(sprintf('<comment>Unknown format "%s"; rendered table output.</comment>', $format));
         }
 
         if ($report->hasBlockedFindings()) {

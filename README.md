@@ -85,6 +85,13 @@ Return JSON:
 php artisan package:audit --format=json
 ```
 
+Return SARIF for GitHub code scanning:
+
+```bash
+php artisan package:audit --format=sarif
+vendor/bin/package-security --format=sarif
+```
+
 Use CI exit codes:
 
 ```bash
@@ -199,12 +206,6 @@ By default, Package Security:
 
 Composer release dates are read from Packagist metadata. npm release dates are read from the npm registry.
 
-## Roadmap
-
-- GitHub Actions example
-- SARIF output
-- standalone `vendor/bin/package-security` command
-
 ## Development
 
 ```bash
@@ -213,6 +214,20 @@ composer test
 ```
 
 GitHub Actions runs the test matrix for Laravel 10, 11, and 12.
+
+## SARIF
+
+SARIF output can be uploaded to GitHub code scanning:
+
+```yaml
+- name: Audit dependencies
+  run: vendor/bin/package-security --format=sarif > package-security.sarif
+
+- name: Upload SARIF
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: package-security.sarif
+```
 
 ## License
 

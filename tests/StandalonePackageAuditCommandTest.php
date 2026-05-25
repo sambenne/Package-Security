@@ -21,4 +21,17 @@ class StandalonePackageAuditCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('"status": "passed"', $tester->getDisplay());
     }
+
+    public function test_standalone_command_can_render_sarif(): void
+    {
+        $tester = new CommandTester(new StandalonePackageAuditCommand());
+
+        $exitCode = $tester->execute([
+            'path' => sys_get_temp_dir(),
+            '--format' => 'sarif',
+        ]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('"version": "2.1.0"', $tester->getDisplay());
+    }
 }
