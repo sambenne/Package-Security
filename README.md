@@ -229,6 +229,8 @@ SARIF output can be uploaded to GitHub code scanning:
     sarif_file: package-security.sarif
 ```
 
+For full copy-paste workflows, see [GitHub Actions Integration](docs/github-actions.md).
+
 ## License
 
 MIT
