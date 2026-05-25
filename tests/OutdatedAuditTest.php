@@ -74,6 +74,24 @@ class OutdatedAuditTest extends TestCase
         $this->assertFalse($report->hasWarnings());
     }
 
+    public function test_composer_auditor_ignores_outdated_rows_when_current_matches_latest(): void
+    {
+        $path = $this->projectWithFiles([
+            'composer.json' => '{}',
+            'composer.lock' => '{}',
+        ]);
+
+        $auditor = new ComposerAuditor(
+            new FakeCommandRunner([
+                'composer audit --format=json' => new NativeCommandResult(0, '{"advisories":[],"abandoned":[]}'),
+                'composer outdated --format=json' => new NativeCommandResult(1, '{"installed":[{"name":"vendor/package","version":"1.0.0","latest":"1.0.0"}]}'),
+            ]),
+            new RiskPolicy('high', true, false, 7, 2),
+        );
+
+        $this->assertFalse($auditor->audit($path)->hasWarnings());
+    }
+
     /**
      * @param array<string, string> $files
      */

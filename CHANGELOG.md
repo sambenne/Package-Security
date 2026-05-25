@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Avoid false positives for dual-licensed packages when at least one licence option is acceptable.
+- Ignore outdated rows where the current version already matches the latest version.
 
 ## [0.1.0] - TBD
 

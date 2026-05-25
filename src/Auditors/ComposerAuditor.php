@@ -159,7 +159,7 @@ class ComposerAuditor
             $candidateVersion = (string) ($package['latest'] ?? '');
             $latestStatus = (string) ($package['latest-status'] ?? '');
 
-            if ($name === '' || $currentVersion === '' || $candidateVersion === '' || $this->policy->allows($name)) {
+            if ($name === '' || $currentVersion === '' || $candidateVersion === '' || $currentVersion === $candidateVersion || $this->policy->allows($name)) {
                 continue;
             }
 

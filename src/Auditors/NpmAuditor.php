@@ -214,7 +214,7 @@ class NpmAuditor
             $wantedVersion = (string) ($package['wanted'] ?? $package['latest'] ?? '');
             $candidateVersion = (string) ($package['latest'] ?? '');
 
-            if ($currentVersion === '' || $candidateVersion === '' || $this->policy->allows((string) $name)) {
+            if ($currentVersion === '' || $candidateVersion === '' || $currentVersion === $candidateVersion || $this->policy->allows((string) $name)) {
                 continue;
             }
 

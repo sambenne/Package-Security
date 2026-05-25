@@ -105,29 +105,43 @@ class RiskPolicy
             ];
         }
 
-        foreach ($licenses as $license) {
-            if (in_array($license, $this->blockedLicenses, true)) {
-                return [
-                    'blocked' => true,
-                    'severity' => 'high',
-                    'reason' => sprintf('Package uses blocked licence %s.', $license),
-                ];
-            }
-        }
-
         if ($this->allowedLicenses !== []) {
             foreach ($licenses as $license) {
-                if (! in_array($license, $this->allowedLicenses, true)) {
-                    return [
-                        'blocked' => false,
-                        'severity' => 'medium',
-                        'reason' => sprintf('Package licence %s is not in the allowed licence list.', $license),
-                    ];
+                if (in_array($license, $this->allowedLicenses, true)) {
+                    return null;
                 }
             }
+
+            return [
+                'blocked' => false,
+                'severity' => 'medium',
+                'reason' => sprintf('Package licences %s are not in the allowed licence list.', implode(', ', $licenses)),
+            ];
+        }
+
+        if ($this->blockedLicenses !== [] && $this->allLicensesAreBlocked($licenses)) {
+            return [
+                'blocked' => true,
+                'severity' => 'high',
+                'reason' => sprintf('Package licences %s are blocked.', implode(', ', $licenses)),
+            ];
         }
 
         return null;
+    }
+
+    /**
+     * @param array<int, string> $licenses
+     */
+    private function allLicensesAreBlocked(array $licenses): bool
+    {
+        foreach ($licenses as $license) {
+            if (! in_array($license, $this->blockedLicenses, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

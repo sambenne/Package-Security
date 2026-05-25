@@ -54,9 +54,44 @@ class RiskPolicyTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('high', $policy->evaluateLicenses(['GPL-3.0-only'])['severity']);
+        $this->assertSame('medium', $policy->evaluateLicenses(['GPL-3.0-only'])['severity']);
         $this->assertSame('medium', $policy->evaluateLicenses(['Apache-2.0'])['severity']);
         $this->assertTrue($policy->evaluateLicenses([])['blocked']);
         $this->assertNull($policy->evaluateLicenses(['MIT']));
+    }
+
+    public function test_blocked_licenses_fail_when_all_options_are_blocked(): void
+    {
+        $policy = RiskPolicy::fromArray([
+            'licenses' => [
+                'block' => ['GPL-3.0-only'],
+            ],
+        ]);
+
+        $this->assertSame('high', $policy->evaluateLicenses(['GPL-3.0-only'])['severity']);
+        $this->assertTrue($policy->evaluateLicenses(['GPL-3.0-only'])['blocked']);
+    }
+
+    public function test_dual_licensed_packages_are_not_blocked_when_one_license_is_acceptable(): void
+    {
+        $policy = RiskPolicy::fromArray([
+            'licenses' => [
+                'block' => ['GPL-2.0-only', 'GPL-3.0-only'],
+            ],
+        ]);
+
+        $this->assertNull($policy->evaluateLicenses(['BSD-3-Clause', 'GPL-2.0-only', 'GPL-3.0-only']));
+    }
+
+    public function test_strict_license_allow_list_accepts_any_allowed_option(): void
+    {
+        $policy = RiskPolicy::fromArray([
+            'licenses' => [
+                'allow' => ['MIT'],
+                'block' => ['GPL-3.0-only'],
+            ],
+        ]);
+
+        $this->assertNull($policy->evaluateLicenses(['MIT', 'GPL-3.0-only']));
     }
 }
