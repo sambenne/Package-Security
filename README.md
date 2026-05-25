@@ -22,6 +22,7 @@ Composer and npm already know how to report known vulnerabilities. This package 
 - Laravel config for fail thresholds
 - CI-friendly exit codes
 - lock-file enforcement
+- release freshness quarantine for newly published update candidates
 - allow lists for accepted risk
 - JSON output for pipelines
 
@@ -107,7 +108,11 @@ return [
 
     'require_lock_files' => true,
 
-    'freshness_days' => 7,
+    'freshness' => [
+        'enabled' => true,
+        'warn_days' => 7,
+        'block_days' => 2,
+    ],
 
     'allow' => [
         'packages' => [],
@@ -122,18 +127,32 @@ Composer:
 
 - requires `composer.lock` when enabled
 - runs `composer audit --format=json`
+- runs `composer outdated --format=json`
 - reports vulnerabilities
 - reports abandoned packages when Composer includes them
+- warns or blocks when the latest update candidate is newly published
 
 npm:
 
 - requires `package-lock.json` when enabled
 - runs `npm audit --json`
+- runs `npm outdated --json`
 - reports vulnerabilities
+- warns or blocks when the latest update candidate is newly published
+
+## Release Freshness
+
+Fresh releases are not automatically bad, but they are higher risk because compromised packages are often caught shortly after publication.
+
+By default, Package Security:
+
+- blocks update candidates published less than 2 days ago
+- warns about update candidates published less than 7 days ago
+
+Composer release dates are read from Packagist metadata. npm release dates are read from the npm registry.
 
 ## Roadmap
 
-- release-age quarantine for newly published versions
 - outdated package reporting
 - licence policy checks
 - GitHub Actions example

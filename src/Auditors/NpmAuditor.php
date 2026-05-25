@@ -6,12 +6,14 @@ use Sambenne\PackageSecurity\Reports\AuditReport;
 use Sambenne\PackageSecurity\Reports\Finding;
 use Sambenne\PackageSecurity\Risk\RiskPolicy;
 use Sambenne\PackageSecurity\Support\NativeCommandRunner;
+use Sambenne\PackageSecurity\Support\PackageMetadataClient;
 
 class NpmAuditor
 {
     public function __construct(
         private readonly NativeCommandRunner $runner,
         private readonly RiskPolicy $policy,
+        private readonly ?PackageMetadataClient $metadata = null,
     ) {
     }
 
@@ -67,7 +69,65 @@ class NpmAuditor
             ));
         }
 
+        $this->auditFreshness($path, $report);
+
         return $report;
+    }
+
+    private function auditFreshness(string $path, AuditReport $report): void
+    {
+        if (! $this->policy->freshnessEnabled) {
+            return;
+        }
+
+        $outdated = $this->runner->run(['npm', 'outdated', '--json'], $path);
+
+        if (trim($outdated->output) === '') {
+            return;
+        }
+
+        $payload = json_decode($outdated->output, true);
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $metadata = $this->metadata ?? new PackageMetadataClient();
+
+        foreach ($payload as $name => $package) {
+            if (! is_array($package)) {
+                continue;
+            }
+
+            $currentVersion = (string) ($package['current'] ?? '');
+            $candidateVersion = (string) ($package['latest'] ?? '');
+
+            if ($currentVersion === '' || $candidateVersion === '' || $this->policy->allows((string) $name)) {
+                continue;
+            }
+
+            $publishedAt = $metadata->npmPublishedAt((string) $name, $candidateVersion);
+
+            if ($publishedAt === null) {
+                continue;
+            }
+
+            $decision = $this->policy->evaluateFreshness($publishedAt);
+
+            if ($decision === null) {
+                continue;
+            }
+
+            $report->add(Finding::freshRelease(
+                ecosystem: 'npm',
+                package: (string) $name,
+                currentVersion: $currentVersion,
+                candidateVersion: $candidateVersion,
+                ageDays: $decision['age_days'],
+                blocked: $decision['blocked'],
+                severity: $decision['severity'],
+            ));
+        }
     }
 
     /**

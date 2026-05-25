@@ -60,6 +60,31 @@ class Finding
         );
     }
 
+    public static function freshRelease(
+        string $ecosystem,
+        string $package,
+        string $currentVersion,
+        string $candidateVersion,
+        int $ageDays,
+        bool $blocked,
+        string $severity,
+    ): self {
+        return new self(
+            ecosystem: $ecosystem,
+            package: $package,
+            type: 'fresh-release',
+            severity: $severity,
+            message: sprintf(
+                'Update candidate %s -> %s was published %d day%s ago.',
+                $currentVersion,
+                $candidateVersion,
+                $ageDays,
+                $ageDays === 1 ? '' : 's',
+            ),
+            blocked: $blocked,
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */

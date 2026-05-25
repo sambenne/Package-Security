@@ -24,7 +24,20 @@ return [
 
     'require_lock_files' => true,
 
-    'freshness_days' => 7,
+    /*
+    |--------------------------------------------------------------------------
+    | Release Freshness Quarantine
+    |--------------------------------------------------------------------------
+    |
+    | New package versions are higher-risk immediately after publication. The
+    | audit can warn or block when an available update is inside this window.
+    |
+    */
+    'freshness' => [
+        'enabled' => true,
+        'warn_days' => 7,
+        'block_days' => 2,
+    ],
 
     /*
     |--------------------------------------------------------------------------

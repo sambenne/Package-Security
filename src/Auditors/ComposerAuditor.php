@@ -6,12 +6,14 @@ use Sambenne\PackageSecurity\Reports\AuditReport;
 use Sambenne\PackageSecurity\Reports\Finding;
 use Sambenne\PackageSecurity\Risk\RiskPolicy;
 use Sambenne\PackageSecurity\Support\NativeCommandRunner;
+use Sambenne\PackageSecurity\Support\PackageMetadataClient;
 
 class ComposerAuditor
 {
     public function __construct(
         private readonly NativeCommandRunner $runner,
         private readonly RiskPolicy $policy,
+        private readonly ?PackageMetadataClient $metadata = null,
     ) {
     }
 
@@ -75,6 +77,65 @@ class ComposerAuditor
             $report->add(Finding::warning('composer', (string) $package, $message));
         }
 
+        $this->auditFreshness($path, $report);
+
         return $report;
+    }
+
+    private function auditFreshness(string $path, AuditReport $report): void
+    {
+        if (! $this->policy->freshnessEnabled) {
+            return;
+        }
+
+        $outdated = $this->runner->run(['composer', 'outdated', '--format=json'], $path);
+
+        if (trim($outdated->output) === '') {
+            return;
+        }
+
+        $payload = json_decode($outdated->output, true);
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $metadata = $this->metadata ?? new PackageMetadataClient();
+
+        foreach (($payload['installed'] ?? []) as $package) {
+            if (! is_array($package)) {
+                continue;
+            }
+
+            $name = (string) ($package['name'] ?? '');
+            $currentVersion = (string) ($package['version'] ?? '');
+            $candidateVersion = (string) ($package['latest'] ?? '');
+
+            if ($name === '' || $currentVersion === '' || $candidateVersion === '' || $this->policy->allows($name)) {
+                continue;
+            }
+
+            $publishedAt = $metadata->composerPublishedAt($name, $candidateVersion);
+
+            if ($publishedAt === null) {
+                continue;
+            }
+
+            $decision = $this->policy->evaluateFreshness($publishedAt);
+
+            if ($decision === null) {
+                continue;
+            }
+
+            $report->add(Finding::freshRelease(
+                ecosystem: 'composer',
+                package: $name,
+                currentVersion: $currentVersion,
+                candidateVersion: $candidateVersion,
+                ageDays: $decision['age_days'],
+                blocked: $decision['blocked'],
+                severity: $decision['severity'],
+            ));
+        }
     }
 }
