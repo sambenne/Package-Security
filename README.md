@@ -1,56 +1,71 @@
 # Package Security
 
-Package Security is a Laravel dependency risk gate for Composer and npm projects.
+[![Tests](https://github.com/sambenne/Package-Security/actions/workflows/tests.yml/badge.svg)](https://github.com/sambenne/Package-Security/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+[![PHP](https://img.shields.io/badge/php-%5E8.2-777bb4.svg)](composer.json)
+[![Laravel](https://img.shields.io/badge/laravel-10%20%7C%2011%20%7C%2012-ff2d20.svg)](composer.json)
 
-It adds an artisan command that wraps the native package audit tools and normalises the results into one policy-driven report.
+Package Security is a Laravel and Composer CLI dependency risk gate for Composer and npm projects.
+
+It wraps the native package audit tools, adds policy checks, and produces table, JSON, or SARIF reports for local development and CI.
 
 ```bash
 php artisan package:audit
+vendor/bin/package-security
 ```
 
-Or run it as a standalone Composer binary:
+## Quick Start
 
-```bash
-vendor/bin/package-security audit
-```
-
-## Why
-
-Composer and npm already know how to report known vulnerabilities. This package adds the missing application-level gate:
-
-- one command for Composer and npm
-- Laravel config for fail thresholds
-- CI-friendly exit codes
-- lock-file enforcement
-- outdated package reporting
-- licence policy checks
-- release freshness quarantine for newly published update candidates
-- allow lists for accepted risk
-- JSON output for pipelines
-
-## Installation
+Install in a Laravel or PHP project:
 
 ```bash
 composer require sambenne/package-security --dev
 ```
 
-Publish the config:
+For Laravel apps, publish the config:
 
 ```bash
 php artisan vendor:publish --tag=package-security-config
 ```
 
-## Usage
-
-Audit the current Laravel application:
+Run the audit:
 
 ```bash
 php artisan package:audit
 ```
 
-Audit the current directory without Laravel:
+Or use the standalone binary:
 
 ```bash
+vendor/bin/package-security
+```
+
+Use CI mode to fail builds:
+
+```bash
+vendor/bin/package-security --ci
+```
+
+## Features
+
+| Feature | Composer | npm |
+|---|---:|---:|
+| Known vulnerabilities | Yes | Yes |
+| Lock-file enforcement | Yes | Yes |
+| Available update reporting | Yes | Yes |
+| Fresh release quarantine | Yes | Yes |
+| Licence policy checks | Yes | Yes |
+| JSON output | Yes | Yes |
+| SARIF output | Yes | Yes |
+| Laravel artisan command | Yes | Yes |
+| Standalone Composer binary | Yes | Yes |
+
+## Commands
+
+Audit the current project:
+
+```bash
+php artisan package:audit
 vendor/bin/package-security
 ```
 
@@ -61,48 +76,57 @@ php artisan package:audit ../another-project
 vendor/bin/package-security ../another-project
 ```
 
-Composer only:
+Limit to one ecosystem:
 
 ```bash
 php artisan package:audit --composer
-```
-
-npm only:
-
-```bash
 php artisan package:audit --npm
 ```
 
-Fail on medium or worse:
+Fail on medium or worse vulnerabilities:
 
 ```bash
 php artisan package:audit --fail-on=medium
 ```
 
-Return JSON:
+Render machine-readable reports:
 
 ```bash
 php artisan package:audit --format=json
-```
-
-Return SARIF for GitHub code scanning:
-
-```bash
 php artisan package:audit --format=sarif
 vendor/bin/package-security --format=sarif
 ```
 
-Use CI exit codes:
-
-```bash
-php artisan package:audit --ci
-```
-
 Exit codes:
 
-- `0` pass
-- `1` warnings only, when `--ci` is used
-- `2` blocked findings
+| Code | Meaning |
+|---:|---|
+| `0` | No findings, or warnings without `--ci` |
+| `1` | Warnings only, when `--ci` is used |
+| `2` | Blocked findings |
+
+## What It Checks
+
+Composer:
+
+- requires `composer.lock` when enabled
+- runs `composer audit --format=json`
+- runs `composer outdated --format=json`
+- reports vulnerabilities
+- reports abandoned packages when Composer includes them
+- checks licences from `composer.lock`
+- reports available updates
+- warns or blocks when an update candidate is newly published
+
+npm:
+
+- requires `package-lock.json` when enabled
+- runs `npm audit --json`
+- runs `npm outdated --json`
+- reports vulnerabilities
+- checks licences from npm registry metadata
+- reports available updates
+- warns or blocks when an update candidate is newly published
 
 ## Config
 
@@ -148,30 +172,7 @@ return [
 ];
 ```
 
-## Current Checks
-
-Composer:
-
-- requires `composer.lock` when enabled
-- runs `composer audit --format=json`
-- runs `composer outdated --format=json`
-- reports vulnerabilities
-- reports abandoned packages when Composer includes them
-- checks licences from `composer.lock`
-- reports available updates
-- warns or blocks when the latest update candidate is newly published
-
-npm:
-
-- requires `package-lock.json` when enabled
-- runs `npm audit --json`
-- runs `npm outdated --json`
-- reports vulnerabilities
-- checks licences from npm registry metadata
-- reports available updates
-- warns or blocks when the latest update candidate is newly published
-
-## Update Reporting
+## Policy Details
 
 Package Security reports update candidates as `update-available` findings.
 
@@ -185,7 +186,14 @@ npm updates compare `wanted` and `latest`:
 - latest inside the declared range is low severity
 - latest outside the declared range is medium severity
 
-## Licence Policy
+Fresh releases are not automatically bad, but they are higher risk because compromised packages are often caught shortly after publication.
+
+By default, Package Security:
+
+- blocks update candidates published less than 2 days ago
+- warns about update candidates published less than 7 days ago
+
+Composer release dates are read from Packagist metadata. npm release dates are read from the npm registry.
 
 Composer licences are read from `composer.lock`. npm licences are resolved with:
 
@@ -195,16 +203,22 @@ npm view package@version license --json
 
 By default, Package Security blocks common GPL and AGPL identifiers and warns on unknown licences. Set `licenses.allow` to enforce a strict allow-list, or set `licenses.block_unknown` to `true` if unknown licences should fail CI.
 
-## Release Freshness
+## GitHub Actions
 
-Fresh releases are not automatically bad, but they are higher risk because compromised packages are often caught shortly after publication.
+SARIF output can be uploaded to GitHub code scanning:
 
-By default, Package Security:
+```yaml
+- name: Audit dependencies
+  run: vendor/bin/package-security --ci --format=sarif > package-security.sarif
 
-- blocks update candidates published less than 2 days ago
-- warns about update candidates published less than 7 days ago
+- name: Upload SARIF
+  if: always()
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: package-security.sarif
+```
 
-Composer release dates are read from Packagist metadata. npm release dates are read from the npm registry.
+For full copy-paste workflows, see [GitHub Actions Integration](docs/github-actions.md).
 
 ## Development
 
@@ -215,22 +229,10 @@ composer test
 
 GitHub Actions runs the test matrix for Laravel 10, 11, and 12.
 
-## SARIF
+## Changelog
 
-SARIF output can be uploaded to GitHub code scanning:
-
-```yaml
-- name: Audit dependencies
-  run: vendor/bin/package-security --format=sarif > package-security.sarif
-
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  with:
-    sarif_file: package-security.sarif
-```
-
-For full copy-paste workflows, see [GitHub Actions Integration](docs/github-actions.md).
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-MIT
+MIT. See [LICENSE.md](LICENSE.md).

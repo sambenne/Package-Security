@@ -3,6 +3,22 @@
     "description": "A Laravel dependency risk gate for Composer and npm packages.",
     "type": "library",
     "license": "MIT",
+    "keywords": [
+        "composer",
+        "dependency",
+        "laravel",
+        "npm",
+        "package",
+        "risk",
+        "sarif",
+        "security",
+        "supply-chain"
+    ],
+    "homepage": "https://github.com/sambenne/Package-Security",
+    "support": {
+        "issues": "https://github.com/sambenne/Package-Security/issues",
+        "source": "https://github.com/sambenne/Package-Security"
+    },
     "autoload": {
         "psr-4": {
             "Sambenne\\PackageSecurity\\": "src/"
