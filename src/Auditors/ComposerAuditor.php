@@ -1,0 +1,80 @@
+<?php
+
+namespace Sambenne\PackageSecurity\Auditors;
+
+use Sambenne\PackageSecurity\Reports\AuditReport;
+use Sambenne\PackageSecurity\Reports\Finding;
+use Sambenne\PackageSecurity\Risk\RiskPolicy;
+use Sambenne\PackageSecurity\Support\NativeCommandRunner;
+
+class ComposerAuditor
+{
+    public function __construct(
+        private readonly NativeCommandRunner $runner,
+        private readonly RiskPolicy $policy,
+    ) {
+    }
+
+    public function audit(string $path): AuditReport
+    {
+        $report = new AuditReport($path);
+
+        if (! file_exists($path . DIRECTORY_SEPARATOR . 'composer.json')) {
+            return $report;
+        }
+
+        if (! file_exists($path . DIRECTORY_SEPARATOR . 'composer.lock')) {
+            $report->add(Finding::lockFileMissing('composer', 'composer.lock', $this->policy->requireLockFiles));
+            return $report;
+        }
+
+        $audit = $this->runner->run(['composer', 'audit', '--format=json'], $path);
+
+        if (! $audit->successful() && trim($audit->output) === '') {
+            $report->add(Finding::warning('composer', 'composer', 'Composer audit could not run: ' . $audit->error));
+            return $report;
+        }
+
+        $payload = json_decode($audit->output, true);
+
+        if (! is_array($payload)) {
+            $report->add(Finding::warning('composer', 'composer', 'Composer audit returned output that could not be parsed.'));
+            return $report;
+        }
+
+        foreach (($payload['advisories'] ?? []) as $package => $advisories) {
+            foreach ((array) $advisories as $advisory) {
+                $id = (string) ($advisory['advisoryId'] ?? $advisory['cve'] ?? $advisory['link'] ?? '');
+
+                if ($this->policy->allows($package, $id)) {
+                    continue;
+                }
+
+                $severity = strtolower((string) ($advisory['severity'] ?? 'high'));
+                $report->add(Finding::vulnerability(
+                    ecosystem: 'composer',
+                    package: (string) $package,
+                    severity: $severity,
+                    title: (string) ($advisory['title'] ?? 'Security advisory'),
+                    advisoryId: $id,
+                    blocked: $this->policy->blocksSeverity($severity),
+                    url: (string) ($advisory['link'] ?? ''),
+                ));
+            }
+        }
+
+        foreach (($payload['abandoned'] ?? []) as $package => $replacement) {
+            if ($this->policy->allows((string) $package)) {
+                continue;
+            }
+
+            $message = $replacement
+                ? sprintf('Package is abandoned; suggested replacement: %s', $replacement)
+                : 'Package is abandoned.';
+
+            $report->add(Finding::warning('composer', (string) $package, $message));
+        }
+
+        return $report;
+    }
+}
