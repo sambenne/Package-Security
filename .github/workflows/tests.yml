@@ -1,0 +1,53 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.2'
+            laravel: '^10.0'
+            testbench: '^8.0'
+          - php: '8.3'
+            laravel: '^11.0'
+            testbench: '^9.0'
+          - php: '8.4'
+            laravel: '^12.0'
+            testbench: '^10.0'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate Composer metadata
+        run: composer validate --strict --no-check-lock
+
+      - name: Install dependency matrix
+        run: |
+          composer require \
+            illuminate/console:${{ matrix.laravel }} \
+            illuminate/support:${{ matrix.laravel }} \
+            orchestra/testbench:${{ matrix.testbench }} \
+            --no-interaction \
+            --no-progress \
+            --update-with-all-dependencies
+
+      - name: Run tests
+        run: composer test

@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+
+use Sambenne\PackageSecurity\Commands\StandalonePackageAuditCommand;
+use Symfony\Component\Console\Application;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+if (in_array($argv[1] ?? null, ['audit', 'package:audit'], true)) {
+    array_splice($argv, 1, 1);
+    $_SERVER['argv'] = $argv;
+    $_SERVER['argc'] = count($argv);
+}
+
+$application = new Application('Package Security', '0.1.0');
+$application->add(new StandalonePackageAuditCommand());
+$application->setDefaultCommand('audit', true);
+$application->run();

@@ -8,6 +8,12 @@ It adds an artisan command that wraps the native package audit tools and normali
 php artisan package:audit
 ```
 
+Or run it as a standalone Composer binary:
+
+```bash
+vendor/bin/package-security audit
+```
+
 ## Why
 
 Composer and npm already know how to report known vulnerabilities. This package adds the missing application-level gate:
@@ -39,10 +45,17 @@ Audit the current Laravel application:
 php artisan package:audit
 ```
 
+Audit the current directory without Laravel:
+
+```bash
+vendor/bin/package-security
+```
+
 Audit another project path:
 
 ```bash
 php artisan package:audit ../another-project
+vendor/bin/package-security ../another-project
 ```
 
 Composer only:
@@ -133,6 +146,8 @@ npm:
 composer install
 composer test
 ```
+
+GitHub Actions runs the test matrix for Laravel 10, 11, and 12.
 
 ## License
 

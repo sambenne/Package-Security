@@ -23,6 +23,9 @@
         "orchestra/testbench": "^8.0|^9.0|^10.0",
         "phpunit/phpunit": "^10.5|^11.0"
     },
+    "bin": [
+        "bin/package-security"
+    ],
     "extra": {
         "laravel": {
             "providers": [
