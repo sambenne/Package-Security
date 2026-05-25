@@ -77,9 +77,56 @@ class ComposerAuditor
             $report->add(Finding::warning('composer', (string) $package, $message));
         }
 
+        $this->auditLicenses($path, $report);
         $this->auditOutdatedPackages($path, $report);
 
         return $report;
+    }
+
+    private function auditLicenses(string $path, AuditReport $report): void
+    {
+        if (! $this->policy->licensesEnabled) {
+            return;
+        }
+
+        $payload = json_decode((string) file_get_contents($path . DIRECTORY_SEPARATOR . 'composer.lock'), true);
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $packages = array_merge(
+            is_array($payload['packages'] ?? null) ? $payload['packages'] : [],
+            is_array($payload['packages-dev'] ?? null) ? $payload['packages-dev'] : [],
+        );
+
+        foreach ($packages as $package) {
+            if (! is_array($package)) {
+                continue;
+            }
+
+            $name = (string) ($package['name'] ?? '');
+
+            if ($name === '' || $this->policy->allows($name)) {
+                continue;
+            }
+
+            $licenses = array_values(array_map('strval', (array) ($package['license'] ?? [])));
+            $decision = $this->policy->evaluateLicenses($licenses);
+
+            if ($decision === null) {
+                continue;
+            }
+
+            $report->add(Finding::licensePolicy(
+                ecosystem: 'composer',
+                package: $name,
+                licenses: $licenses,
+                message: $decision['reason'],
+                blocked: $decision['blocked'],
+                severity: $decision['severity'],
+            ));
+        }
     }
 
     private function auditOutdatedPackages(string $path, AuditReport $report): void

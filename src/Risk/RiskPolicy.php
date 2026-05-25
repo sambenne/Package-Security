@@ -18,6 +18,8 @@ class RiskPolicy
     /**
      * @param array<int, string> $allowedPackages
      * @param array<int, string> $allowedAdvisories
+     * @param array<int, string> $allowedLicenses
+     * @param array<int, string> $blockedLicenses
      */
     public function __construct(
         public readonly string $failOn,
@@ -26,8 +28,12 @@ class RiskPolicy
         public readonly int $freshnessWarnDays,
         public readonly int $freshnessBlockDays,
         public readonly bool $updatesEnabled = true,
+        public readonly bool $licensesEnabled = true,
+        public readonly bool $blockUnknownLicenses = false,
         private readonly array $allowedPackages = [],
         private readonly array $allowedAdvisories = [],
+        private readonly array $allowedLicenses = [],
+        private readonly array $blockedLicenses = [],
     ) {
     }
 
@@ -38,6 +44,7 @@ class RiskPolicy
     public static function fromArray(array $config, array $overrides = []): self
     {
         $allow = is_array($config['allow'] ?? null) ? $config['allow'] : [];
+        $licenses = is_array($config['licenses'] ?? null) ? $config['licenses'] : [];
         $updates = is_array($config['updates'] ?? null) ? $config['updates'] : [];
         $freshness = is_array($config['freshness'] ?? null) ? $config['freshness'] : [];
         $legacyFreshnessDays = (int) ($config['freshness_days'] ?? 7);
@@ -49,8 +56,12 @@ class RiskPolicy
             freshnessWarnDays: (int) ($freshness['warn_days'] ?? $legacyFreshnessDays),
             freshnessBlockDays: (int) ($freshness['block_days'] ?? 0),
             updatesEnabled: (bool) ($updates['enabled'] ?? true),
+            licensesEnabled: (bool) ($licenses['enabled'] ?? true),
+            blockUnknownLicenses: (bool) ($licenses['block_unknown'] ?? false),
             allowedPackages: array_values((array) ($allow['packages'] ?? [])),
             allowedAdvisories: array_values((array) ($allow['advisories'] ?? [])),
+            allowedLicenses: array_values((array) ($licenses['allow'] ?? [])),
+            blockedLicenses: array_values((array) ($licenses['block'] ?? [])),
         );
     }
 
@@ -69,6 +80,54 @@ class RiskPolicy
         }
 
         return $advisoryId !== '' && in_array($advisoryId, $this->allowedAdvisories, true);
+    }
+
+    /**
+     * @param array<int, string> $licenses
+     * @return array{blocked: bool, severity: string, reason: string}|null
+     */
+    public function evaluateLicenses(array $licenses): ?array
+    {
+        if (! $this->licensesEnabled) {
+            return null;
+        }
+
+        $licenses = array_values(array_filter(array_map(
+            static fn (string $license): string => trim($license),
+            $licenses,
+        )));
+
+        if ($licenses === []) {
+            return [
+                'blocked' => $this->blockUnknownLicenses,
+                'severity' => $this->blockUnknownLicenses ? 'high' : 'medium',
+                'reason' => 'Package licence is unknown.',
+            ];
+        }
+
+        foreach ($licenses as $license) {
+            if (in_array($license, $this->blockedLicenses, true)) {
+                return [
+                    'blocked' => true,
+                    'severity' => 'high',
+                    'reason' => sprintf('Package uses blocked licence %s.', $license),
+                ];
+            }
+        }
+
+        if ($this->allowedLicenses !== []) {
+            foreach ($licenses as $license) {
+                if (! in_array($license, $this->allowedLicenses, true)) {
+                    return [
+                        'blocked' => false,
+                        'severity' => 'medium',
+                        'reason' => sprintf('Package licence %s is not in the allowed licence list.', $license),
+                    ];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -18,7 +18,12 @@ class RiskPolicyTest extends TestCase
 
     public function test_it_allows_packages_and_advisories(): void
     {
-        $policy = new RiskPolicy('high', true, true, 7, 2, true, ['laravel/framework'], ['GHSA-1234']);
+        $policy = RiskPolicy::fromArray([
+            'allow' => [
+                'packages' => ['laravel/framework'],
+                'advisories' => ['GHSA-1234'],
+            ],
+        ]);
 
         $this->assertTrue($policy->allows('laravel/framework'));
         $this->assertTrue($policy->allows('vite', 'GHSA-1234'));
@@ -37,5 +42,21 @@ class RiskPolicyTest extends TestCase
         $this->assertSame(['blocked' => true, 'severity' => 'high', 'age_days' => 1], $blocked);
         $this->assertSame(['blocked' => false, 'severity' => 'medium', 'age_days' => 5], $warned);
         $this->assertNull($ignored);
+    }
+
+    public function test_it_evaluates_license_policy(): void
+    {
+        $policy = RiskPolicy::fromArray([
+            'licenses' => [
+                'allow' => ['MIT'],
+                'block' => ['GPL-3.0-only'],
+                'block_unknown' => true,
+            ],
+        ]);
+
+        $this->assertSame('high', $policy->evaluateLicenses(['GPL-3.0-only'])['severity']);
+        $this->assertSame('medium', $policy->evaluateLicenses(['Apache-2.0'])['severity']);
+        $this->assertTrue($policy->evaluateLicenses([])['blocked']);
+        $this->assertNull($policy->evaluateLicenses(['MIT']));
     }
 }

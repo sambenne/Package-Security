@@ -39,6 +39,38 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Licence Policy
+    |--------------------------------------------------------------------------
+    |
+    | Composer licences are read from composer.lock. npm licences are read from
+    | registry metadata for installed packages listed in package-lock.json.
+    |
+    */
+    'licenses' => [
+        'enabled' => true,
+        'allow' => [],
+        'block' => [
+            'AGPL-1.0',
+            'AGPL-1.0-only',
+            'AGPL-1.0-or-later',
+            'AGPL-3.0',
+            'AGPL-3.0-only',
+            'AGPL-3.0-or-later',
+            'GPL-1.0',
+            'GPL-1.0-only',
+            'GPL-1.0-or-later',
+            'GPL-2.0',
+            'GPL-2.0-only',
+            'GPL-2.0-or-later',
+            'GPL-3.0',
+            'GPL-3.0-only',
+            'GPL-3.0-or-later',
+        ],
+        'block_unknown' => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Release Freshness Quarantine
     |--------------------------------------------------------------------------
     |

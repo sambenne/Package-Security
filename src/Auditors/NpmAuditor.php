@@ -69,9 +69,120 @@ class NpmAuditor
             ));
         }
 
+        $this->auditLicenses($path, $report);
         $this->auditOutdatedPackages($path, $report);
 
         return $report;
+    }
+
+    private function auditLicenses(string $path, AuditReport $report): void
+    {
+        if (! $this->policy->licensesEnabled) {
+            return;
+        }
+
+        $payload = json_decode((string) file_get_contents($path . DIRECTORY_SEPARATOR . 'package-lock.json'), true);
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        foreach ($this->npmPackages($payload) as $name => $version) {
+            if ($this->policy->allows((string) $name)) {
+                continue;
+            }
+
+            $licenses = $this->npmPackageLicenses((string) $name, (string) $version, $path);
+            $decision = $this->policy->evaluateLicenses($licenses);
+
+            if ($decision === null) {
+                continue;
+            }
+
+            $report->add(Finding::licensePolicy(
+                ecosystem: 'npm',
+                package: (string) $name,
+                licenses: $licenses,
+                message: $decision['reason'],
+                blocked: $decision['blocked'],
+                severity: $decision['severity'],
+            ));
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, string>
+     */
+    private function npmPackages(array $payload): array
+    {
+        $packages = [];
+
+        if (is_array($payload['packages'] ?? null)) {
+            foreach ($payload['packages'] as $path => $package) {
+                if (! is_array($package) || $path === '') {
+                    continue;
+                }
+
+                $name = (string) ($package['name'] ?? $this->packageNameFromLockPath((string) $path));
+                $version = (string) ($package['version'] ?? '');
+
+                if ($name !== '' && $version !== '') {
+                    $packages[$name] = $version;
+                }
+            }
+        }
+
+        if ($packages === [] && is_array($payload['dependencies'] ?? null)) {
+            foreach ($payload['dependencies'] as $name => $package) {
+                if (is_array($package) && isset($package['version'])) {
+                    $packages[(string) $name] = (string) $package['version'];
+                }
+            }
+        }
+
+        return $packages;
+    }
+
+    private function packageNameFromLockPath(string $path): string
+    {
+        $path = str_replace('\\', '/', $path);
+        $nodeModules = '/node_modules/';
+        $position = strrpos($path, $nodeModules);
+
+        if ($position !== false) {
+            return substr($path, $position + strlen($nodeModules));
+        }
+
+        if (str_starts_with($path, 'node_modules/')) {
+            return substr($path, strlen('node_modules/'));
+        }
+
+        return basename($path);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function npmPackageLicenses(string $name, string $version, string $path): array
+    {
+        $result = $this->runner->run(['npm', 'view', $name . '@' . $version, 'license', '--json'], $path);
+
+        if (trim($result->output) === '') {
+            return [];
+        }
+
+        $payload = json_decode($result->output, true);
+
+        if (is_string($payload)) {
+            return [$payload];
+        }
+
+        if (is_array($payload)) {
+            return array_values(array_filter(array_map('strval', $payload)));
+        }
+
+        return [];
     }
 
     private function auditOutdatedPackages(string $path, AuditReport $report): void

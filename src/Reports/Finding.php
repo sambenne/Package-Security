@@ -115,6 +115,29 @@ class Finding
     }
 
     /**
+     * @param array<int, string> $licenses
+     */
+    public static function licensePolicy(
+        string $ecosystem,
+        string $package,
+        array $licenses,
+        string $message,
+        bool $blocked,
+        string $severity,
+    ): self {
+        $licenseLabel = $licenses === [] ? 'unknown' : implode(', ', $licenses);
+
+        return new self(
+            ecosystem: $ecosystem,
+            package: $package,
+            type: 'license-policy',
+            severity: $severity,
+            message: sprintf('%s Licences: %s', $message, $licenseLabel),
+            blocked: $blocked,
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(): array

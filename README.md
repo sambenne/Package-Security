@@ -23,6 +23,7 @@ Composer and npm already know how to report known vulnerabilities. This package 
 - CI-friendly exit codes
 - lock-file enforcement
 - outdated package reporting
+- licence policy checks
 - release freshness quarantine for newly published update candidates
 - allow lists for accepted risk
 - JSON output for pipelines
@@ -113,6 +114,20 @@ return [
         'enabled' => true,
     ],
 
+    'licenses' => [
+        'enabled' => true,
+        'allow' => [],
+        'block' => [
+            'AGPL-3.0-only',
+            'AGPL-3.0-or-later',
+            'GPL-2.0-only',
+            'GPL-2.0-or-later',
+            'GPL-3.0-only',
+            'GPL-3.0-or-later',
+        ],
+        'block_unknown' => false,
+    ],
+
     'freshness' => [
         'enabled' => true,
         'warn_days' => 7,
@@ -135,6 +150,7 @@ Composer:
 - runs `composer outdated --format=json`
 - reports vulnerabilities
 - reports abandoned packages when Composer includes them
+- checks licences from `composer.lock`
 - reports available updates
 - warns or blocks when the latest update candidate is newly published
 
@@ -144,6 +160,7 @@ npm:
 - runs `npm audit --json`
 - runs `npm outdated --json`
 - reports vulnerabilities
+- checks licences from npm registry metadata
 - reports available updates
 - warns or blocks when the latest update candidate is newly published
 
@@ -161,6 +178,16 @@ npm updates compare `wanted` and `latest`:
 - latest inside the declared range is low severity
 - latest outside the declared range is medium severity
 
+## Licence Policy
+
+Composer licences are read from `composer.lock`. npm licences are resolved with:
+
+```bash
+npm view package@version license --json
+```
+
+By default, Package Security blocks common GPL and AGPL identifiers and warns on unknown licences. Set `licenses.allow` to enforce a strict allow-list, or set `licenses.block_unknown` to `true` if unknown licences should fail CI.
+
 ## Release Freshness
 
 Fresh releases are not automatically bad, but they are higher risk because compromised packages are often caught shortly after publication.
@@ -174,7 +201,6 @@ Composer release dates are read from Packagist metadata. npm release dates are r
 
 ## Roadmap
 
-- licence policy checks
 - GitHub Actions example
 - SARIF output
 - standalone `vendor/bin/package-security` command
